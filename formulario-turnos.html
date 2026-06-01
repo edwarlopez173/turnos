@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Control de Turnos</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --red: #c1121f;
+    --red-dark: #96000c;
+    --red-light: #fce4e4;
+    --green-light: #e8f5e9;
+    --yellow-light: #fff9e6;
+    --bg: #f4f3f0;
+    --card: #ffffff;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --border: #e0ddd8;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 40px;
+  }
+  header {
+    background: var(--red);
+    color: white;
+    padding: 20px 16px 16px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(193,18,31,0.25);
+  }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: -0.3px; }
+  header p  { font-size: 13px; opacity: 0.8; margin-top: 2px; }
+
+  /* URL config bar */
+  #url-bar {
+    background: #2a2a2a;
+    padding: 10px 16px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  #url-bar input {
+    flex: 1;
+    background: #3a3a3a;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: #e0e0e0;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+  }
+  #url-bar input::placeholder { color: #888; }
+  #url-bar button {
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  #url-status { font-size: 11px; color: #aaa; padding: 4px 16px 6px; background: #2a2a2a; }
+  #url-status.ok { color: #66bb6a; }
+
+  .container { max-width: 600px; margin: 0 auto; padding: 16px; }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+  }
+  .card-title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--red);
+    margin-bottom: 16px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-title span { font-size: 16px; }
+
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--muted);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  input[type=text], input[type=number], select, textarea {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 15px;
+    color: var(--text);
+    background: #fafaf8;
+    transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    outline: none;
+    border-color: var(--red);
+    background: #fff;
+  }
+  textarea { resize: vertical; min-height: 80px; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Estado unidad */
+  .estado-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .estado-btn {
+    padding: 10px 6px;
+    border-radius: var(--radius-sm);
+    border: 2px solid var(--border);
+    background: #fafaf8;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.15s;
+    color: var(--muted);
+  }
+  .estado-btn.active-op  { border-color: #2e7d32; background: var(--green-light); color: #2e7d32; }
+  .estado-btn.active-man { border-color: #f59f00; background: var(--yellow-light); color: #9a6800; }
+  .estado-btn.active-fs  { border-color: var(--red); background: var(--red-light); color: var(--red); }
+
+  /* Checklist */
+  .check-section { margin-bottom: 16px; }
+  .check-section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+  .check-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    background: #fafaf8;
+    margin-bottom: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    user-select: none;
+  }
+  .check-item:active { transform: scale(0.98); }
+  .check-item.checked {
+    border-color: #2e7d32;
+    background: var(--green-light);
+  }
+  .check-box {
+    width: 22px; height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+    transition: all 0.15s;
+  }
+  .check-item.checked .check-box {
+    background: #2e7d32;
+    border-color: #2e7d32;
+    color: white;
+  }
+  .check-label { font-size: 14px; flex: 1; line-height: 1.3; }
+
+  /* Fluidos */
+  .fluido-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1.5px solid var(--border);
+    background: #fafaf8;
+    margin-bottom: 6px;
+  }
+  .fluido-label { font-size: 14px; flex: 1; }
+  .fluido-btns { display: flex; gap: 6px; }
+  .fluido-btn {
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1.5px solid var(--border);
+    background: white;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--muted);
+  }
+  .fluido-btn.ok   { border-color: #2e7d32; background: var(--green-light); color: #2e7d32; font-weight: 600; }
+  .fluido-btn.bajo { border-color: #f59f00; background: var(--yellow-light); color: #9a6800; font-weight: 600; }
+  .fluido-btn.sin  { border-color: var(--red); background: var(--red-light); color: var(--red); font-weight: 600; }
+
+  /* Combustible slider */
+  .combustible-wrap { position: relative; }
+  .combustible-val {
+    font-family: 'DM Mono', monospace;
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--red);
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  input[type=range] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: linear-gradient(to right, var(--red) 0%, var(--red) var(--val, 75%), var(--border) var(--val, 75%));
+    border: none;
+    padding: 0;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--red);
+    cursor: pointer;
+    border: 3px solid white;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  }
+
+  /* Firma canvas */
+  .firma-wrap {
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: #fafaf8;
+    overflow: hidden;
+    position: relative;
+  }
+  .firma-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 120px;
+    touch-action: none;
+    cursor: crosshair;
+  }
+  .firma-clear {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: rgba(255,255,255,0.9);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: 'DM Sans', sans-serif;
+    color: var(--muted);
+  }
+  .firma-hint {
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    padding: 6px;
+    pointer-events: none;
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    white-space: nowrap;
+  }
+
+  /* Submit */
+  #btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: var(--red);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+    transition: background 0.2s, transform 0.1s;
+    margin-top: 8px;
+  }
+  #btn-submit:active { transform: scale(0.98); }
+  #btn-submit:disabled { background: #aaa; cursor: not-allowed; }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: #1a1a1a;
+    color: white;
+    padding: 12px 24px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1);
+    z-index: 999;
+    white-space: nowrap;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+  #toast.success { background: #2e7d32; }
+  #toast.error   { background: var(--red); }
+
+  .progress-bar {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--red);
+    border-radius: 2px;
+    transition: width 0.4s ease;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚑 Control de Turno</h1>
+  <p>Registro de entrega y recepción de unidad</p>
+</header>
+
+<div id="url-bar">
+  <input type="text" id="webapp-url" placeholder="Pega aquí tu URL de Google Apps Script..." />
+  <button onclick="saveUrl()">Guardar</button>
+</div>
+<div id="url-status">Sin URL configurada</div>
+
+<div class="container">
+
+  <div class="progress-bar"><div class="progress-fill" id="progress" style="width:0%"></div></div>
+
+  <!-- DATOS GENERALES -->
+  <div class="card">
+    <div class="card-title"><span>📋</span> Datos del Turno</div>
+    <div class="field">
+      <label>Unidad / Ambulancia</label>
+      <input type="text" id="unit" placeholder="Ej: AMB-001" />
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Turno</label>
+        <select id="shift">
+          <option value="">Seleccionar...</option>
+          <option>Mañana 06:00–14:00</option>
+          <option>Tarde 14:00–22:00</option>
+          <option>Noche 22:00–06:00</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fecha y hora</label>
+        <input type="text" id="fecha" readonly style="background:#f0f0ed; color:var(--muted);" />
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Conductor (entrega)</label>
+        <input type="text" id="entrega" placeholder="Nombre completo" />
+      </div>
+      <div class="field">
+        <label>Conductor (recibe)</label>
+        <input type="text" id="recibe" placeholder="Nombre completo" />
+      </div>
+    </div>
+  </div>
+
+  <!-- ESTADO Y KM -->
+  <div class="card">
+    <div class="card-title"><span>🚗</span> Estado de la Unidad</div>
+    <div class="field">
+      <label>Estado general</label>
+      <div class="estado-grid">
+        <button class="estado-btn" onclick="setEstado('operativa',this)">✅ Operativa</button>
+        <button class="estado-btn" onclick="setEstado('mantenimiento',this)">🔧 Mantenimiento</button>
+        <button class="estado-btn" onclick="setEstado('fuera_servicio',this)">🚫 Fuera servicio</button>
+      </div>
+    </div>
+    <div class="row2">
+      <div class="field">
+        <label>Km inicial</label>
+        <input type="number" id="kmInicial" placeholder="84320" />
+      </div>
+      <div class="field">
+        <label>Km final</label>
+        <input type="number" id="kmFinal" placeholder="84650" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Combustible — <span id="comb-val">75</span>%</label>
+      <input type="range" id="combustible" min="0" max="100" value="75"
+        oninput="document.getElementById('comb-val').textContent=this.value; this.style.setProperty('--val',this.value+'%')"
+        style="--val:75%" />
+    </div>
+  </div>
+
+  <!-- FLUIDOS -->
+  <div class="card">
+    <div class="card-title"><span>💧</span> Niveles de Fluidos</div>
+    <div id="fluidos-container"></div>
+  </div>
+
+  <!-- INSPECCIÓN -->
+  <div class="card">
+    <div class="card-title"><span>🔍</span> Inspección Técnica</div>
+    <div id="inspeccion-container"></div>
+  </div>
+
+  <!-- HERRAMIENTAS -->
+  <div class="card">
+    <div class="card-title"><span>🧰</span> Herramientas y Dotación</div>
+    <div id="herramientas-container"></div>
+  </div>
+
+  <!-- ASEO -->
+  <div class="card">
+    <div class="card-title"><span>🧹</span> Aseo y Presentación</div>
+    <div id="aseo-container"></div>
+  </div>
+
+  <!-- NOVEDADES -->
+  <div class="card">
+    <div class="card-title"><span>📝</span> Novedades</div>
+    <div class="field">
+      <textarea id="novedades" placeholder="Describa cualquier novedad, daño, faltante o situación relevante del turno..."></textarea>
+    </div>
+  </div>
+
+  <!-- FIRMAS -->
+  <div class="card">
+    <div class="card-title"><span>✍️</span> Firmas</div>
+    <div class="field">
+      <label>Firma conductor que entrega</label>
+      <div class="firma-wrap" id="wrap-entrega">
+        <canvas id="firma-entrega" width="600" height="150"></canvas>
+        <div class="firma-hint" id="hint-entrega">Firme aquí</div>
+        <button class="firma-clear" onclick="clearFirma('entrega')">Limpiar</button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:16px">
+      <label>Firma conductor que recibe</label>
+      <div class="firma-wrap" id="wrap-recibe">
+        <canvas id="firma-recibe" width="600" height="150"></canvas>
+        <div class="firma-hint" id="hint-recibe">Firme aquí</div>
+        <button class="firma-clear" onclick="clearFirma('recibe')">Limpiar</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="btn-submit" onclick="enviarFormulario()">Enviar Registro de Turno</button>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ── DATOS ────────────────────────────────────────────────────────────────────
+const FLUIDOS = [
+  "Aceite de motor",
+  "Refrigerante / agua radiador",
+  "Líquido de frenos",
+  "Dirección hidráulica",
+  "Limpiaparabrisas"
+];
+
+const INSPECCION = {
+  "🔧 Motor": ["Nivel de aceite motor","Correas y mangueras sin grietas","Sin fugas visibles","Batería limpia y asegurada","Filtro de aire en buen estado"],
+  "⚙️ Transmisión": ["Nivel aceite transmisión","Caja de cambios sin ruidos","Embrague con recorrido adecuado"],
+  "🛞 Suspensión": ["Amortiguadores sin fugas","Bujes y rotulas sin juego","Dirección sin vibraciones","Alineación correcta"],
+  "💡 Eléctrico": ["Luces delanteras OK","Luces traseras / freno OK","Luces de emergencia / sirena OK","Indicadores tablero sin alertas","Limpiaparabrisas funcional"],
+  "🛑 Frenos": ["Nivel líquido de frenos","Freno de mano funcional","Sin ruido al frenar","Pedal de freno firme"],
+  "🔵 Llantas": ["Llanta delantera izquierda OK","Llanta delantera derecha OK","Llanta trasera izquierda OK","Llanta trasera derecha OK","Llanta de repuesto OK","Presión correcta en todas"],
+  "🚗 Carrocería": ["Sin golpes nuevos exteriores","Puertas abren y cierran bien","Vidrios sin fisuras","Espejos en buen estado","Identificación / rotulado OK"],
+  "💧 Fluidos (checklist)": ["Agua radiador / refrigerante","Líquido limpiaparabrisas","Líquido dirección hidráulica","Líquido de frenos (reserva)"],
+};
+
+const HERRAMIENTAS = [
+  "Gato hidráulico","Llave de ruedas / cruz","Juego de llaves mixtas",
+  "Juego de destornilladores","Alicates / pinzas","Triangulos de seguridad (x2)",
+  "Extintor vehículo","Cables pasa corriente","Linterna con pilas",
+  "Cinta de señalización","Guantes de trabajo","Kit de primeros auxilios vial"
+];
+
+const ASEO = [
+  "Cabina delantera (tablero, consola)","Asientos delanteros",
+  "Habitáculo trasero","Pisos y alfombras","Exterior lavado","Vidrios limpios"
+];
+
+// ── ESTADO ────────────────────────────────────────────────────────────────────
+let estadoUnidad = "";
+let fluidosState = {};
+let inspeccionState = {};
+let herramientasState = {};
+let aseoState = {};
+
+// ── URL ────────────────────────────────────────────────────────────────────────
+function saveUrl() {
+  const url = document.getElementById('webapp-url').value.trim();
+  if (!url) return;
+  localStorage.setItem('gas_url', url);
+  const st = document.getElementById('url-status');
+  st.textContent = '✓ URL guardada correctamente';
+  st.className = 'ok';
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('gas_url');
+  if (saved) {
+    document.getElementById('webapp-url').value = saved;
+    const st = document.getElementById('url-status');
+    st.textContent = '✓ URL configurada';
+    st.className = 'ok';
+  }
+  document.getElementById('fecha').value = new Date().toLocaleString('es-CO');
+  buildFluidos();
+  buildInspeccion();
+  buildChecklist('herramientas-container', HERRAMIENTAS, herramientasState);
+  buildChecklist('aseo-container', ASEO, aseoState);
+  initFirma('entrega');
+  initFirma('recibe');
+  updateProgress();
+});
+
+// ── ESTADO UNIDAD ─────────────────────────────────────────────────────────────
+function setEstado(val, btn) {
+  estadoUnidad = val;
+  document.querySelectorAll('.estado-btn').forEach(b => b.className = 'estado-btn');
+  if (val === 'operativa')      btn.className = 'estado-btn active-op';
+  if (val === 'mantenimiento')  btn.className = 'estado-btn active-man';
+  if (val === 'fuera_servicio') btn.className = 'estado-btn active-fs';
+  updateProgress();
+}
+
+// ── FLUIDOS ───────────────────────────────────────────────────────────────────
+function buildFluidos() {
+  const c = document.getElementById('fluidos-container');
+  FLUIDOS.forEach(f => {
+    fluidosState[f] = "";
+    const row = document.createElement('div');
+    row.className = 'fluido-row';
+    row.innerHTML = `
+      <span class="fluido-label">${f}</span>
+      <div class="fluido-btns">
+        <button class="fluido-btn" onclick="setFluido('${f}','ok',this)">OK</button>
+        <button class="fluido-btn" onclick="setFluido('${f}','bajo',this)">Bajo</button>
+        <button class="fluido-btn" onclick="setFluido('${f}','sin',this)">Sin nivel</button>
+      </div>`;
+    c.appendChild(row);
+  });
+}
+
+function setFluido(nombre, val, btn) {
+  fluidosState[nombre] = val;
+  const btns = btn.parentElement.querySelectorAll('.fluido-btn');
+  btns.forEach(b => b.className = 'fluido-btn');
+  btn.className = `fluido-btn ${val}`;
+  updateProgress();
+}
+
+// ── INSPECCIÓN ────────────────────────────────────────────────────────────────
+function buildInspeccion() {
+  const c = document.getElementById('inspeccion-container');
+  const sectionKeys = {
+    "🔧 Motor": "motor",
+    "⚙️ Transmisión": "transmision",
+    "🛞 Suspensión": "suspension",
+    "💡 Eléctrico": "electrico",
+    "🛑 Frenos": "frenos",
+    "🔵 Llantas": "llantas",
+    "🚗 Carrocería": "carroceria",
+    "💧 Fluidos (checklist)": "fluidos",
+  };
+  Object.entries(INSPECCION).forEach(([section, items]) => {
+    const key = sectionKeys[section];
+    inspeccionState[key] = {};
+    const sec = document.createElement('div');
+    sec.className = 'check-section';
+    sec.innerHTML = `<div class="check-section-title">${section}</div>`;
+    items.forEach(item => {
+      inspeccionState[key][item] = false;
+      const el = document.createElement('div');
+      el.className = 'check-item';
+      el.innerHTML = `<div class="check-box"></div><span class="check-label">${item}</span>`;
+      el.onclick = () => {
+        inspeccionState[key][item] = !inspeccionState[key][item];
+        el.classList.toggle('checked', inspeccionState[key][item]);
+        el.querySelector('.check-box').textContent = inspeccionState[key][item] ? '✓' : '';
+        updateProgress();
+      };
+      sec.appendChild(el);
+    });
+    c.appendChild(sec);
+  });
+}
+
+// ── CHECKLISTS GENÉRICOS ──────────────────────────────────────────────────────
+function buildChecklist(containerId, items, stateObj) {
+  const c = document.getElementById(containerId);
+  items.forEach(item => {
+    stateObj[item] = false;
+    const el = document.createElement('div');
+    el.className = 'check-item';
+    el.innerHTML = `<div class="check-box"></div><span class="check-label">${item}</span>`;
+    el.onclick = () => {
+      stateObj[item] = !stateObj[item];
+      el.classList.toggle('checked', stateObj[item]);
+      el.querySelector('.check-box').textContent = stateObj[item] ? '✓' : '';
+      updateProgress();
+    };
+    c.appendChild(el);
+  });
+}
+
+// ── PROGRESO ──────────────────────────────────────────────────────────────────
+function updateProgress() {
+  let score = 0;
+  if (document.getElementById('unit').value.trim()) score += 15;
+  if (document.getElementById('entrega').value.trim()) score += 10;
+  if (document.getElementById('recibe').value.trim()) score += 10;
+  if (estadoUnidad) score += 15;
+  const fluidosFilled = Object.values(fluidosState).filter(v => v !== "").length;
+  score += Math.round((fluidosFilled / FLUIDOS.length) * 25);
+  score += 25; // base
+  score = Math.min(100, score);
+  document.getElementById('progress').style.width = score + '%';
+}
+
+// ── FIRMA ─────────────────────────────────────────────────────────────────────
+function initFirma(id) {
+  const canvas = document.getElementById(`firma-${id}`);
+  const ctx = canvas.getContext('2d');
+  const hint = document.getElementById(`hint-${id}`);
+  let drawing = false;
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / r.width;
+    const scaleY = canvas.height / r.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+  }
+
+  canvas.addEventListener('mousedown',  e => { drawing = true; hint.style.display='none'; ctx.beginPath(); const p=getPos(e); ctx.moveTo(p.x,p.y); });
+  canvas.addEventListener('mousemove',  e => { if (!drawing) return; const p=getPos(e); ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#1a1a1a'; ctx.lineTo(p.x,p.y); ctx.stroke(); });
+  canvas.addEventListener('mouseup',    () => drawing = false);
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing=true; hint.style.display='none'; ctx.beginPath(); const p=getPos(e); ctx.moveTo(p.x,p.y); }, {passive:false});
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if(!drawing) return; const p=getPos(e); ctx.lineWidth=2.5; ctx.lineCap='round'; ctx.strokeStyle='#1a1a1a'; ctx.lineTo(p.x,p.y); ctx.stroke(); }, {passive:false});
+  canvas.addEventListener('touchend',   () => drawing = false);
+}
+
+function clearFirma(id) {
+  const canvas = document.getElementById(`firma-${id}`);
+  canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+  document.getElementById(`hint-${id}`).style.display = 'block';
+}
+
+function getFirmaData(id) {
+  const canvas = document.getElementById(`firma-${id}`);
+  const ctx = canvas.getContext('2d');
+  const px = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const hasContent = Array.from(px).some((v, i) => i % 4 === 3 && v > 0);
+  return hasContent ? canvas.toDataURL('image/png') : "";
+}
+
+// ── ENVÍO ─────────────────────────────────────────────────────────────────────
+async function enviarFormulario() {
+  const url = localStorage.getItem('gas_url');
+  if (!url) {
+    showToast('⚠️ Primero configura la URL de la Web App', 'error');
+    return;
+  }
+
+  const unit    = document.getElementById('unit').value.trim();
+  const entrega = document.getElementById('entrega').value.trim();
+  const recibe  = document.getElementById('recibe').value.trim();
+  const shift   = document.getElementById('shift').value;
+
+  if (!unit || !entrega || !recibe || !shift || !estadoUnidad) {
+    showToast('⚠️ Completa los campos obligatorios', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.textContent = 'Enviando...';
+
+  const payload = {
+    id: Date.now(),
+    date: new Date().toLocaleString('es-CO'),
+    unit, shift,
+    driver: entrega,
+    entrega, recibe,
+    estadoUnidad,
+    kmInicial: document.getElementById('kmInicial').value || "0",
+    kmFinal:   document.getElementById('kmFinal').value   || "0",
+    combustible: document.getElementById('combustible').value,
+    fluidos: fluidosState,
+    inspeccion: inspeccionState,
+    herramientas: herramientasState,
+    aseo: aseoState,
+    fotos: { exterior:0, interior:0, motor:0, danos:0 },
+    novedades: document.getElementById('novedades').value,
+    firmaConductor: getFirmaData('entrega'),
+    firmaReceptor:  getFirmaData('recibe'),
+  };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json();
+    if (json.status === 'ok') {
+      showToast('✅ Turno registrado exitosamente', 'success');
+      setTimeout(() => location.reload(), 2000);
+    } else {
+      throw new Error(json.message || 'Error desconocido');
+    }
+  } catch (err) {
+    showToast('❌ Error: ' + err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Enviar Registro de Turno';
+  }
+}
+
+function showToast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3500);
+}
+
+// Actualizar progreso al escribir
+['unit','entrega','recibe'].forEach(id => {
+  document.getElementById(id)?.addEventListener('input', updateProgress);
+});
+</script>
+</body>
+</html>
